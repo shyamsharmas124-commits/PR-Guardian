@@ -561,7 +561,21 @@ def main() -> int:
 
     # 2. AI Review (Groq / Gemini)
     guidelines = load_repository_guidelines()
-    ai_data, provider, model = ask_ai(diff_files, guidelines)
+    has_keys = bool(os.environ.get("GROQ_API_KEY", "").strip() or os.environ.get("GEMINI_API_KEY", "").strip())
+    if not has_keys:
+        print("Notice: No AI API keys configured in GitHub Secrets. Running in Setup Mode.")
+        ai_data = {
+            "summary": "⚠️ **PR Guardian Setup Required:** No AI API key was detected in GitHub Secrets. Add `GROQ_API_KEY` (free from [console.groq.com](https://console.groq.com)) or `GEMINI_API_KEY` (free from [aistudio.google.com](https://aistudio.google.com)) to **Settings → Secrets and variables → Actions** to enable full AI code reviews and 1-click suggestions. The deterministic secret scanner is currently protecting this PR.",
+            "quality_score": 75 if not secret_findings else 30,
+            "risk": "medium" if not secret_findings else "high",
+            "scores": {"security": 85 if not secret_findings else 20, "correctness": 75, "maintainability": 75, "performance": 75},
+            "findings": [],
+            "suggested_tests": ["Configure GROQ_API_KEY or GEMINI_API_KEY in GitHub Actions Secrets to unlock AI review."]
+        }
+        provider = "Setup Mode"
+        model = "Secret Scanner Active"
+    else:
+        ai_data, provider, model = ask_ai(diff_files, guidelines)
     provider_info = f"{provider} ({model})"
 
     # 3. Normalize & Filter
