@@ -4,16 +4,18 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
-# Keep this workflow limited to PRs from branches in this same repository for the MVP.
-# Fork PRs are skipped because pull_request workflows do not receive secrets/write access there.
+# PR Guardian - Automated AI Code Reviewer & Safe Auto-Merge Quality Gate
+# Works completely on free tiers (Groq and/or Gemini + standard GitHub Actions runners)
 jobs:
   ai-review:
+    # Only run on branches within the same repository to protect API keys
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write       # Needed only if optional auto-merge is enabled.
-      pull-requests: write  # Create PR review + inline comments.
+      contents: write       # Enables auto-merge if configured
+      pull-requests: write  # Allows posting reviews and inline comments
+      statuses: write       # Reports status check on the pull request
 
     steps:
       - name: Check out repository
@@ -27,13 +29,17 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --disable-pip-version-check -r requirements.txt
 
-      - name: Review pull request
+      - name: Run PR Guardian Review
         env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          GROQ_MODEL: ${{ vars.GROQ_MODEL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+          GROQ_MODEL: ${{ vars.GROQ_MODEL }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           ENABLE_AUTO_MERGE: ${{ vars.ENABLE_AUTO_MERGE }}
+          MIN_PASSING_SCORE: ${{ vars.MIN_PASSING_SCORE }}
         run: python scripts/review_pr.py
